@@ -12,6 +12,8 @@ export const Overlay = async (): Promise<void> => {
 declare global {
   interface Window {
     Overlay: any;
+    pieChart: any;
+    barChart: any;
   }
 }
 

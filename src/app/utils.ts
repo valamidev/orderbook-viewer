@@ -5,6 +5,7 @@
 export const dataToTable = (htmlId: string, rows: any) => {
 
     const table = document.getElementById(htmlId) as HTMLTableElement;
+    table.innerHTML = '';
 
     rows.reverse()
 

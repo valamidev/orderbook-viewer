@@ -1,4 +1,4 @@
-import { GetOrderBook } from "./binance"
+import { GetExchangeInfo, GetOrderBook } from "./binance"
 import { OBA } from 'orderbook-analysis';
 import { Chart } from "chart.js";
 import { drawStatTable } from "./statistics";
@@ -8,16 +8,48 @@ import { dataToTable } from "./utils";
 
 export const Start = async () => {
 
+    // Load Exchange Info
+    const exchangeInfo = await GetExchangeInfo();
+
+    //  console.log(exchangeInfo.symbols);
+
+    const defaultSymbols = ['ETHUSDT', 'XRPUSDT', 'BTCUSDT', 'BNBUSDT'];
+
     // Load Orderbook
-    const rawOrderbook = await GetOrderBook();
+    await Process(exchangeInfo, 'ETHUSDT');
 
-    const OrderBook = new OBA(rawOrderbook);
 
-    await Process(OrderBook);
+    const selector = document.getElementById('symbolSelect') as HTMLSelectElement;
+
+    for (const symbol of exchangeInfo.symbols) {
+        if (defaultSymbols.indexOf(symbol.symbol) === -1) {
+            const opt = document.createElement("option");
+            opt.value = symbol.symbol;
+            opt.text = `${symbol.baseAsset} / ${symbol.quoteAsset}`;
+
+            selector.add(opt, null);
+        }
+
+    }
+
+
+    selector.addEventListener('change', async (e) => {
+
+        const newSymbol = (e.target as any).value || 'ETHUSDT';
+
+        await Process(exchangeInfo, newSymbol);
+
+    });
 
 }
 
-export const Process = async (orderBook: OBA) => {
+export const Process = async (exchangeInfo: any, symbol: string) => {
+
+    const title = `${exchangeInfo.symbols.find((e: any) => e.symbol === symbol).baseAsset} / ${exchangeInfo.symbols.find((e: any) => e.symbol === symbol).quoteAsset}`
+
+    const rawOrderbook = await GetOrderBook(exchangeInfo.symbols.find((e: any) => e.symbol === symbol).symbol);
+
+    const orderBook = new OBA(rawOrderbook);
 
     const bidDepths: { depth: number, label: string, colorBg: string }[] = [];
     const askDepths: { depth: number, label: string, colorBg: string }[] = [];
@@ -38,7 +70,15 @@ export const Process = async (orderBook: OBA) => {
     bidDepths.reverse();
 
 
-    new Chart(document.getElementById('barDepthChart') as any, {
+    if (window.barChart) {
+        window.barChart.destroy();
+    }
+
+    if (window.pieChart) {
+        window.pieChart.destroy();
+    }
+
+    window.barChart = new Chart(document.getElementById('barDepthChart') as any, {
         type: 'bar',
         data: {
             labels: [...bidDepths.map(e => e.label), ...askDepths.map(e => e.label)],
@@ -60,13 +100,13 @@ export const Process = async (orderBook: OBA) => {
             plugins: {
                 title: {
                     display: true,
-                    text: 'XRP/USDT Depth'
+                    text: `${title} Depth`
                 }
             }
         }
     });
 
-    new Chart(document.getElementById('pieDepthChart') as any, {
+    window.pieChart = new Chart(document.getElementById('pieDepthChart') as any, {
         type: 'pie',
         data: {
             labels: [...bidDepths.map(e => e.label), ...askDepths.map(e => e.label)],
@@ -88,7 +128,7 @@ export const Process = async (orderBook: OBA) => {
             plugins: {
                 title: {
                     display: true,
-                    text: 'XRP/USDT Depth'
+                    text: `${title} Depth`
                 }
             }
         }
@@ -96,6 +136,9 @@ export const Process = async (orderBook: OBA) => {
 
 
     const quartilesData: any[] = [];
+
+    const table = document.getElementById("statTable") as HTMLTableElement;
+    table.innerHTML = '';
 
     for (const stat of stats) {
 
@@ -105,6 +148,7 @@ export const Process = async (orderBook: OBA) => {
             quartilesData.push(stat.value['50']);
             quartilesData.push(stat.value['75']);
             quartilesData.push(stat.value['100']);
+            continue;
         }
         if (stat.method === 'quartilesByBidsPrice') {
             quartilesData.push(stat.value['100']);
@@ -112,9 +156,10 @@ export const Process = async (orderBook: OBA) => {
             quartilesData.push(stat.value['50']);
             quartilesData.push(stat.value['25']);
             quartilesData.push(stat.value['0']);
+            continue;
         }
 
-        const table = document.getElementById("statTable") as HTMLTableElement;
+
         const row = table.insertRow(0);
         const cell1 = row.insertCell(0);
         const cell2 = row.insertCell(1);

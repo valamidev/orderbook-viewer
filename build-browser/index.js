@@ -16,11 +16,27 @@ const chart_js_1 = require("chart.js");
 const statistics_1 = require("./statistics");
 const utils_1 = require("./utils");
 exports.Start = () => __awaiter(void 0, void 0, void 0, function* () {
-    const rawOrderbook = yield binance_1.GetOrderBook();
-    const OrderBook = new orderbook_analysis_1.OBA(rawOrderbook);
-    yield exports.Process(OrderBook);
+    const exchangeInfo = yield binance_1.GetExchangeInfo();
+    const defaultSymbols = ['ETHUSDT', 'XRPUSDT', 'BTCUSDT', 'BNBUSDT'];
+    yield exports.Process(exchangeInfo, 'ETHUSDT');
+    const selector = document.getElementById('symbolSelect');
+    for (const symbol of exchangeInfo.symbols) {
+        if (defaultSymbols.indexOf(symbol.symbol) === -1) {
+            const opt = document.createElement("option");
+            opt.value = symbol.symbol;
+            opt.text = `${symbol.baseAsset} / ${symbol.quoteAsset}`;
+            selector.add(opt, null);
+        }
+    }
+    selector.addEventListener('change', (e) => __awaiter(void 0, void 0, void 0, function* () {
+        const newSymbol = e.target.value || 'ETHUSDT';
+        yield exports.Process(exchangeInfo, newSymbol);
+    }));
 });
-exports.Process = (orderBook) => __awaiter(void 0, void 0, void 0, function* () {
+exports.Process = (exchangeInfo, symbol) => __awaiter(void 0, void 0, void 0, function* () {
+    const title = `${exchangeInfo.symbols.find((e) => e.symbol === symbol).baseAsset} / ${exchangeInfo.symbols.find((e) => e.symbol === symbol).quoteAsset}`;
+    const rawOrderbook = yield binance_1.GetOrderBook(exchangeInfo.symbols.find((e) => e.symbol === symbol).symbol);
+    const orderBook = new orderbook_analysis_1.OBA(rawOrderbook);
     const bidDepths = [];
     const askDepths = [];
     for (let i = 1; i <= 10; i++) {
@@ -31,7 +47,13 @@ exports.Process = (orderBook) => __awaiter(void 0, void 0, void 0, function* () 
     }
     const stats = statistics_1.drawStatTable(orderBook).reverse();
     bidDepths.reverse();
-    new chart_js_1.Chart(document.getElementById('barDepthChart'), {
+    if (window.barChart) {
+        window.barChart.destroy();
+    }
+    if (window.pieChart) {
+        window.pieChart.destroy();
+    }
+    window.barChart = new chart_js_1.Chart(document.getElementById('barDepthChart'), {
         type: 'bar',
         data: {
             labels: [...bidDepths.map(e => e.label), ...askDepths.map(e => e.label)],
@@ -53,12 +75,12 @@ exports.Process = (orderBook) => __awaiter(void 0, void 0, void 0, function* () 
             plugins: {
                 title: {
                     display: true,
-                    text: 'XRP/USDT Depth'
+                    text: `${title} Depth`
                 }
             }
         }
     });
-    new chart_js_1.Chart(document.getElementById('pieDepthChart'), {
+    window.pieChart = new chart_js_1.Chart(document.getElementById('pieDepthChart'), {
         type: 'pie',
         data: {
             labels: [...bidDepths.map(e => e.label), ...askDepths.map(e => e.label)],
@@ -80,12 +102,14 @@ exports.Process = (orderBook) => __awaiter(void 0, void 0, void 0, function* () 
             plugins: {
                 title: {
                     display: true,
-                    text: 'XRP/USDT Depth'
+                    text: `${title} Depth`
                 }
             }
         }
     });
     const quartilesData = [];
+    const table = document.getElementById("statTable");
+    table.innerHTML = '';
     for (const stat of stats) {
         if (stat.method === 'quartilesByAsksPrice') {
             quartilesData.push(stat.value['0']);
@@ -93,6 +117,7 @@ exports.Process = (orderBook) => __awaiter(void 0, void 0, void 0, function* () 
             quartilesData.push(stat.value['50']);
             quartilesData.push(stat.value['75']);
             quartilesData.push(stat.value['100']);
+            continue;
         }
         if (stat.method === 'quartilesByBidsPrice') {
             quartilesData.push(stat.value['100']);
@@ -100,8 +125,8 @@ exports.Process = (orderBook) => __awaiter(void 0, void 0, void 0, function* () 
             quartilesData.push(stat.value['50']);
             quartilesData.push(stat.value['25']);
             quartilesData.push(stat.value['0']);
+            continue;
         }
-        const table = document.getElementById("statTable");
         const row = table.insertRow(0);
         const cell1 = row.insertCell(0);
         const cell2 = row.insertCell(1);
@@ -128,7 +153,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const axios_1 = __importDefault(require("axios"));
 const BASE_URL = `https://api.binance.com`;
-exports.GetOrderBook = (symbol = 'XRPUSDT', limit = 5000) => __awaiter(void 0, void 0, void 0, function* () {
+exports.GetExchangeInfo = () => __awaiter(void 0, void 0, void 0, function* () {
+    const response = yield axios_1.default.get(`${BASE_URL}/api/v3/exchangeInfo`);
+    return response.data;
+});
+exports.GetOrderBook = (symbol = 'ETHUSDT', limit = 5000) => __awaiter(void 0, void 0, void 0, function* () {
     const response = yield axios_1.default.get(`${BASE_URL}/api/v3/depth?symbol=${symbol}&limit=${limit}`);
     return response.data;
 });
@@ -164,6 +193,7 @@ exports.drawStatTable = (orderbook) => {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.dataToTable = (htmlId, rows) => {
     const table = document.getElementById(htmlId);
+    table.innerHTML = '';
     rows.reverse();
     for (const row of rows) {
         const newRow = table.insertRow(0);
