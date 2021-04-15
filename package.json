@@ -33,7 +33,10 @@
   "license": "ISC",
   "dependencies": {
     "@types/ejs": "^3.0.4",
-    "browserify": "^16.5.1"
+    "axios": "^0.21.1",
+    "browserify": "^16.5.1",
+    "chart.js": "^3.1.0",
+    "orderbook-analysis": "^0.1.2"
   },
   "devDependencies": {
     "@types/jest": "24.9.1",
