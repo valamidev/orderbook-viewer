@@ -5,8 +5,8 @@
   "private": true,
   "main": "dist/index.js",
   "scripts": {
-    "start": "node  ./dist/index.js",
-    "dev": "nodemon",
+    "start": "browser-sync start --server --serveStatic 'docs' --files 'docs' ",
+    "dev": "nodemon --watch src --exec npm run build",
     "test": "jest",
     "browserify": "browserify ./build/index.js -o ./docs/index.js -s overlay",
     "build": "tsc && npm run browserify",
@@ -34,6 +34,7 @@
     "@types/node": "12.12.29",
     "@typescript-eslint/eslint-plugin": "2.27.0",
     "@typescript-eslint/parser": "2.27.0",
+    "browser-sync": "^2.26.14",
     "eslint": "6.8.0",
     "eslint-config-airbnb-typescript": "7.2.1",
     "eslint-config-prettier": "6.10.1",
