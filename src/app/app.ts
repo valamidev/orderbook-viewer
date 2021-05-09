@@ -51,18 +51,34 @@ export const Process = async (exchangeInfo: any, symbol: string) => {
 
     const orderBook = new OBA(rawOrderbook);
 
-    const bidDepths: { depth: number, label: string, colorBg: string }[] = [];
-    const askDepths: { depth: number, label: string, colorBg: string }[] = [];
+    const bidDepths: { depth: number, depthSumDown: number, label: string, colorBg: string }[] = [];
+    const askDepths: { depth: number, depthSumUp: number, label: string, colorBg: string }[] = [];
+
 
 
     for (let i = 1; i <= 10; i++) {
         const pct = Math.floor(i * 0.0025 * 10000) / 100;
 
+
         const depths = orderBook.calc('depthByPercent', 0 + (i * 0.0025)) as any;
 
+        let depthSumUp = depths.up;
+        let depthSumDown = depths.down;
 
-        bidDepths.push({ depth: depths.down, label: `-${pct} %`, colorBg: `rgba(75, 192, 192,   1)` });
-        askDepths.push({ depth: depths.up, label: `+${pct} %`, colorBg: `rgba(255, 99, 132, 1)` });
+        if (i > 1) {
+            const prevDepths = orderBook.calc('depthByPercent', 0 + ((i - 1) * 0.0025)) as any;
+
+            depthSumUp = depths.up - prevDepths.up;
+            depthSumDown = depths.down - prevDepths.down;
+        }
+
+
+
+
+
+
+        bidDepths.push({ depth: depths.down, depthSumDown, label: `-${pct} %`, colorBg: `rgba(75, 192, 192,   1)` });
+        askDepths.push({ depth: depths.up, depthSumUp, label: `+${pct} %`, colorBg: `rgba(255, 99, 132, 1)` });
     }
 
 
@@ -112,7 +128,7 @@ export const Process = async (exchangeInfo: any, symbol: string) => {
             labels: [...bidDepths.map(e => e.label), ...askDepths.map(e => e.label)],
             datasets: [{
                 label: 'Depth',
-                data: [...bidDepths.map(e => e.depth), ...askDepths.map(e => e.depth)],
+                data: [...bidDepths.map(e => e.depthSumDown), ...askDepths.map(e => e.depthSumUp)],
                 backgroundColor: [
                     ...bidDepths.map(e => e.colorBg), ...askDepths.map(e => e.colorBg)
                 ],

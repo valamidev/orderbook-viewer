@@ -42,8 +42,15 @@ exports.Process = (exchangeInfo, symbol) => __awaiter(void 0, void 0, void 0, fu
     for (let i = 1; i <= 10; i++) {
         const pct = Math.floor(i * 0.0025 * 10000) / 100;
         const depths = orderBook.calc('depthByPercent', 0 + (i * 0.0025));
-        bidDepths.push({ depth: depths.down, label: `-${pct} %`, colorBg: `rgba(75, 192, 192,   1)` });
-        askDepths.push({ depth: depths.up, label: `+${pct} %`, colorBg: `rgba(255, 99, 132, 1)` });
+        let depthSumUp = depths.up;
+        let depthSumDown = depths.down;
+        if (i > 1) {
+            const prevDepths = orderBook.calc('depthByPercent', 0 + ((i - 1) * 0.0025));
+            depthSumUp = depths.up - prevDepths.up;
+            depthSumDown = depths.down - prevDepths.down;
+        }
+        bidDepths.push({ depth: depths.down, depthSumDown, label: `-${pct} %`, colorBg: `rgba(75, 192, 192,   1)` });
+        askDepths.push({ depth: depths.up, depthSumUp, label: `+${pct} %`, colorBg: `rgba(255, 99, 132, 1)` });
     }
     const stats = statistics_1.drawStatTable(orderBook).reverse();
     bidDepths.reverse();
@@ -86,7 +93,7 @@ exports.Process = (exchangeInfo, symbol) => __awaiter(void 0, void 0, void 0, fu
             labels: [...bidDepths.map(e => e.label), ...askDepths.map(e => e.label)],
             datasets: [{
                     label: 'Depth',
-                    data: [...bidDepths.map(e => e.depth), ...askDepths.map(e => e.depth)],
+                    data: [...bidDepths.map(e => e.depthSumDown), ...askDepths.map(e => e.depthSumUp)],
                     backgroundColor: [
                         ...bidDepths.map(e => e.colorBg), ...askDepths.map(e => e.colorBg)
                     ],
